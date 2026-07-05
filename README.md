@@ -63,12 +63,25 @@ The AI layer (`lib/ai`) is provider-agnostic:
 - `buildSuggestionContext()` assembles a provider-neutral request (system prompt,
   user content, JSON output schema).
 - An `AIProvider` adapter runs it and normalizes the response to one shape.
-- **Claude** (Opus 4.8) is the default; an **OpenAI** adapter is included as a
-  drop-in example. Add another by writing one file in `lib/ai/providers/` and
-  registering it in `lib/ai/index.ts`, then set `AI_PROVIDER`.
+- **Claude** (Opus 4.8) is the default. **Gemini** and **OpenAI** adapters are
+  included; the OpenAI one also works with any OpenAI-compatible endpoint
+  (Groq, OpenRouter, Together, Ollama) via `OPENAI_BASE_URL`.
+- Add another by writing one file in `lib/ai/providers/` and registering it in
+  `lib/ai/index.ts`, then set `AI_PROVIDER`.
 
 Set `AI_PROVIDER` and the matching key in `.env.local` (see `.env.local.example`).
 Without a key, the suggest button shows a hint instead of failing.
+
+### Free testing with Gemini
+
+1. Grab a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+2. In `.env.local`:
+   ```
+   AI_PROVIDER=gemini
+   GEMINI_API_KEY=your-key
+   # GEMINI_MODEL=gemini-2.5-flash   # optional override
+   ```
+3. Restart `npm run dev` and click **Suggest next moves**.
 
 ## What Phase 1 does
 
