@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TeacherBuddy
 
-## Getting Started
+A calm, personal app for music/creativity teachers to manage students, capture
+lesson notes, and track progress over time. **Phase 1 (this MVP)** is the living
+student record — no AI yet. Phases 2 (AI "next moves" suggestions) and 3 (document
+RAG grounding) build on top of it.
 
-First, run the development server:
+- **Design & spec:** `docs/superpowers/specs/2026-07-04-teacherbuddy-design.md`
+- **This plan:** `docs/superpowers/plans/2026-07-04-phase1-mvp.md`
+
+## Stack
+
+Next.js 16 (App Router, TypeScript) · Tailwind CSS 4 · shadcn/ui (Base UI) ·
+Supabase (Postgres + Auth) · Recharts.
+
+## Setup
+
+### 1. Create a Supabase project
+
+At [supabase.com](https://supabase.com), create a free project.
+
+### 2. Create the schema
+
+In the Supabase dashboard → **SQL Editor**, paste and run the contents of
+[`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql). This
+creates the `students`, `lesson_notes`, and `suggestions` tables and the
+row-level-security policies that scope every row to its owning teacher.
+
+### 3. Configure environment
+
+Copy the example and fill in the two values from **Project Settings → API**:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.local.example .env.local
+# NEXT_PUBLIC_SUPABASE_URL=...
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 4. (Optional) Turn off email confirmation for a personal setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+In Supabase → **Authentication → Providers → Email**, disable "Confirm email"
+if you want sign-up to log you straight in without an email round-trip.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 5. Run
 
-## Learn More
+```bash
+npm install
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Open [http://localhost:3000](http://localhost:3000), create an account, and add
+your first student.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## What Phase 1 does
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Email/password auth; each teacher sees only their own data (enforced by RLS).
+- Add / edit students (learner type, focus, level, goals, status, notes).
+- Log lessons with a hybrid form: date, focus, a 1–5 progress rating,
+  "where they struggled" tags, what worked, homework, and freeform notes.
+- Per-student view: profile, a progress-over-time chart, and a lesson timeline.
+- Light/dark theme.
 
-## Deploy on Vercel
+## Verification status
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm run build` passes (type-check + compile), and the app renders (login and
+  redirects verified against a running dev server).
+- Full end-to-end auth + CRUD requires **your** Supabase project (URL + anon key)
+  and the migration from step 2 — it can't be exercised without those credentials.
