@@ -51,6 +51,25 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000), create an account, and add
 your first student.
 
+## Phase 2: AI "next moves" (provider-agnostic)
+
+On each student you can click **Suggest next moves** to turn their profile, goals,
+and lesson history into a structured plan: where they are, struggles to address, a
+step-by-step next-lesson plan, exercises, and a longer-term direction. Suggestions
+are saved and can be accepted or dismissed.
+
+The AI layer (`lib/ai`) is provider-agnostic:
+
+- `buildSuggestionContext()` assembles a provider-neutral request (system prompt,
+  user content, JSON output schema).
+- An `AIProvider` adapter runs it and normalizes the response to one shape.
+- **Claude** (Opus 4.8) is the default; an **OpenAI** adapter is included as a
+  drop-in example. Add another by writing one file in `lib/ai/providers/` and
+  registering it in `lib/ai/index.ts`, then set `AI_PROVIDER`.
+
+Set `AI_PROVIDER` and the matching key in `.env.local` (see `.env.local.example`).
+Without a key, the suggest button shows a hint instead of failing.
+
 ## What Phase 1 does
 
 - Email/password auth; each teacher sees only their own data (enforced by RLS).

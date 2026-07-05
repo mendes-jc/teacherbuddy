@@ -1,5 +1,8 @@
+import type { SuggestionResult } from "@/lib/ai/types";
+
 export type LearnerType = "adult" | "child";
 export type StudentStatus = "active" | "inactive";
+export type SuggestionStatus = "new" | "accepted" | "edited" | "dismissed";
 
 export interface Student {
   id: string;
@@ -40,6 +43,19 @@ export interface StudentInput {
   goals: string;
   status: StudentStatus;
   general_notes: string;
+}
+
+export interface Suggestion {
+  id: string;
+  student_id: string;
+  teacher_id: string;
+  generated_at: string;
+  content: SuggestionResult;
+  source_note_ids: string[];
+  provider: string | null;
+  model: string | null;
+  teacher_feedback: string | null;
+  status: SuggestionStatus;
 }
 
 /** Fields a teacher fills in when logging a lesson. */

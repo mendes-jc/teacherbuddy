@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, NotebookPen, Pencil, Plus, Target } from "lucide-react";
 import { getStudent } from "@/lib/students";
 import { listLessonNotes } from "@/lib/lesson-notes";
+import { getLatestSuggestion } from "@/lib/suggestions";
+import { SuggestionPanel } from "@/components/suggestion-panel";
 import { StudentForm } from "@/components/student-form";
 import { LessonNoteForm } from "@/components/lesson-note-form";
 import { LessonNoteItem } from "@/components/lesson-note-item";
@@ -24,6 +26,13 @@ export default async function StudentPage({
   if (!student) notFound();
 
   const notes = await listLessonNotes(id);
+  const latestSuggestion = await getLatestSuggestion(id);
+  const aiProvider = (process.env.AI_PROVIDER || "claude").toLowerCase();
+  const aiConfigured =
+    aiProvider === "openai"
+      ? !!process.env.OPENAI_API_KEY
+      : !!process.env.ANTHROPIC_API_KEY;
+
   const rated = notes.filter((n) => n.progress_rating != null);
   const avg =
     rated.length > 0
@@ -125,6 +134,15 @@ export default async function StudentPage({
             <ProgressChart notes={notes} />
           </CardContent>
         </Card>
+      </div>
+
+      {/* AI suggestions */}
+      <div className="mt-4">
+        <SuggestionPanel
+          studentId={student.id}
+          initial={latestSuggestion}
+          aiConfigured={aiConfigured}
+        />
       </div>
 
       {/* Timeline */}

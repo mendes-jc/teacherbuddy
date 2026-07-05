@@ -3,7 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { StudentInput, LessonNoteInput } from "@/lib/types";
+import { getStudent } from "@/lib/students";
+import { listLessonNotes } from "@/lib/lesson-notes";
+import { getProvider, buildSuggestionContext } from "@/lib/ai";
+import { AINotConfiguredError } from "@/lib/ai/types";
+import type {
+  StudentInput,
+  LessonNoteInput,
+  SuggestionStatus,
+} from "@/lib/types";
 
 type Result = { error: string | null };
 
@@ -97,6 +105,57 @@ export async function createLessonNote(
       homework: nullify(input.homework),
       freeform_notes: nullify(input.freeform_notes),
     });
+
+    if (error) return { error: error.message };
+    revalidatePath(`/students/${studentId}`);
+    return { error: null };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+export async function generateSuggestion(studentId: string): Promise<Result> {
+  try {
+    const { supabase, userId } = await requireUserId();
+
+    const student = await getStudent(studentId);
+    if (!student) return { error: "Student not found." };
+    const notes = await listLessonNotes(studentId);
+
+    const provider = getProvider();
+    const request = buildSuggestionContext(student, notes);
+    const { result, model } = await provider.generateSuggestions(request);
+
+    const { error } = await supabase.from("suggestions").insert({
+      student_id: studentId,
+      teacher_id: userId,
+      content: result,
+      source_note_ids: notes.map((n) => n.id),
+      provider: provider.name,
+      model,
+      status: "new",
+    });
+
+    if (error) return { error: error.message };
+    revalidatePath(`/students/${studentId}`);
+    return { error: null };
+  } catch (e) {
+    if (e instanceof AINotConfiguredError) return { error: e.message };
+    return { error: (e as Error).message };
+  }
+}
+
+export async function setSuggestionStatus(
+  id: string,
+  studentId: string,
+  status: SuggestionStatus,
+): Promise<Result> {
+  try {
+    const { supabase } = await requireUserId();
+    const { error } = await supabase
+      .from("suggestions")
+      .update({ status })
+      .eq("id", id);
 
     if (error) return { error: error.message };
     revalidatePath(`/students/${studentId}`);
