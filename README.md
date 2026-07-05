@@ -83,6 +83,30 @@ Without a key, the suggest button shows a hint instead of failing.
    ```
 3. Restart `npm run dev` and click **Suggest next moves**.
 
+## Phase 3: document RAG (grounded suggestions)
+
+Add your own teaching material under **Materials** (paste text or upload a
+`.txt` / `.md` file). It's chunked, embedded, and stored in Postgres via
+**pgvector**. When you generate a suggestion, TeacherBuddy embeds a query from
+the student's situation, retrieves the most relevant chunks, and grounds the
+advice in *your* methods and terminology.
+
+- **Migration:** run `supabase/migrations/0002_rag.sql` (adds the `vector`
+  extension, `documents` + `document_chunks`, RLS, an HNSW index, and the
+  `match_document_chunks` similarity function).
+- **Embeddings are decoupled** (`lib/ai/embeddings`) with the same adapter
+  pattern: **Gemini** (default, free, 768-dim `text-embedding-004`) and
+  **OpenAI** (`text-embedding-3-small` reduced to 768). Select with
+  `EMBEDDING_PROVIDER`.
+- **Dimension is fixed at 768** to match the `vector(768)` column. Switching to
+  a provider with a different native dimension means changing the column and
+  re-embedding.
+- **Graceful:** with no embedding key, Materials shows a hint and suggestions
+  still generate (just ungrounded). Retrieval failures never block a suggestion.
+
+Since Gemini covers both generation and embeddings, one `GEMINI_API_KEY` enables
+Phases 2 and 3 together.
+
 ## What Phase 1 does
 
 - Email/password auth; each teacher sees only their own data (enforced by RLS).

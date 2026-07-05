@@ -45,6 +45,13 @@ export interface StudentInput {
   general_notes: string;
 }
 
+export interface Document {
+  id: string;
+  teacher_id: string;
+  name: string;
+  created_at: string;
+}
+
 export interface Suggestion {
   id: string;
   student_id: string;

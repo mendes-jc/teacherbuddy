@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getStudent } from "@/lib/students";
 import { listLessonNotes } from "@/lib/lesson-notes";
 import { getProvider, buildSuggestionContext } from "@/lib/ai";
+import { getEmbeddingProvider, isEmbeddingConfigured } from "@/lib/ai/embeddings";
+import { matchChunks } from "@/lib/documents";
+import { chunkText } from "@/lib/chunk";
 import { AINotConfiguredError } from "@/lib/ai/types";
 import type {
   StudentInput,
@@ -122,8 +125,31 @@ export async function generateSuggestion(studentId: string): Promise<Result> {
     if (!student) return { error: "Student not found." };
     const notes = await listLessonNotes(studentId);
 
+    // RAG: ground in the teacher's material when embeddings are configured.
+    // Never let retrieval failure block a suggestion.
+    let references: string[] = [];
+    if (isEmbeddingConfigured()) {
+      try {
+        const query = [
+          student.focus,
+          student.goals,
+          ...notes.slice(0, 3).flatMap((n) => n.struggle_tags),
+          notes[0]?.freeform_notes ?? "",
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .slice(0, 2000);
+        if (query.trim()) {
+          const [queryEmbedding] = await getEmbeddingProvider().embed([query]);
+          if (queryEmbedding) references = await matchChunks(queryEmbedding, 6);
+        }
+      } catch {
+        references = [];
+      }
+    }
+
     const provider = getProvider();
-    const request = buildSuggestionContext(student, notes);
+    const request = buildSuggestionContext(student, notes, references);
     const { result, model } = await provider.generateSuggestions(request);
 
     const { error } = await supabase.from("suggestions").insert({
@@ -159,6 +185,71 @@ export async function setSuggestionStatus(
 
     if (error) return { error: error.message };
     revalidatePath(`/students/${studentId}`);
+    return { error: null };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+export async function createDocument(
+  name: string,
+  content: string,
+): Promise<Result> {
+  if (!name.trim()) return { error: "Give the material a name." };
+  const chunks = chunkText(content);
+  if (chunks.length === 0) return { error: "There's no text to add." };
+  if (!isEmbeddingConfigured()) {
+    return {
+      error:
+        "Embeddings aren't configured. Set an embedding provider key in .env.local to add material.",
+    };
+  }
+
+  try {
+    const { supabase, userId } = await requireUserId();
+
+    const embeddings = await getEmbeddingProvider().embed(chunks);
+    if (embeddings.length !== chunks.length) {
+      return { error: "Embedding provider returned an unexpected result." };
+    }
+
+    const { data: doc, error: docError } = await supabase
+      .from("documents")
+      .insert({ teacher_id: userId, name: name.trim() })
+      .select("id")
+      .single();
+    if (docError) return { error: docError.message };
+
+    const rows = chunks.map((c, i) => ({
+      document_id: doc.id as string,
+      teacher_id: userId,
+      content: c,
+      embedding: embeddings[i],
+      metadata: { index: i },
+    }));
+    const { error: chunkError } = await supabase
+      .from("document_chunks")
+      .insert(rows);
+    if (chunkError) {
+      // Roll back the (now orphaned) document row.
+      await supabase.from("documents").delete().eq("id", doc.id);
+      return { error: chunkError.message };
+    }
+
+    revalidatePath("/materials");
+    return { error: null };
+  } catch (e) {
+    if (e instanceof AINotConfiguredError) return { error: e.message };
+    return { error: (e as Error).message };
+  }
+}
+
+export async function deleteDocument(id: string): Promise<Result> {
+  try {
+    const { supabase } = await requireUserId();
+    const { error } = await supabase.from("documents").delete().eq("id", id);
+    if (error) return { error: error.message };
+    revalidatePath("/materials");
     return { error: null };
   } catch (e) {
     return { error: (e as Error).message };

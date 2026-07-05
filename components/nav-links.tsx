@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users } from "lucide-react";
+import { BookOpen, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const links = [{ href: "/dashboard", label: "Students", icon: Users }];
+const links = [
+  { href: "/dashboard", label: "Students", icon: Users },
+  { href: "/materials", label: "Materials", icon: BookOpen },
+];
 
 export function NavLinks() {
   const pathname = usePathname();

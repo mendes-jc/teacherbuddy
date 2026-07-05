@@ -11,6 +11,9 @@ practical, not generic. Prefer small, achievable next steps a teacher can act on
 in the very next lesson. Adapt tone and difficulty to whether the learner is an
 adult or a child.
 
+When the teacher's own material is provided, ground your suggestions in it and
+prefer its methods, exercises, and terminology over generic advice.
+
 Respond only with the structured fields requested.`;
 
 function fmtDate(d: string) {
@@ -37,6 +40,7 @@ function renderNote(note: LessonNote): string {
 export function buildSuggestionContext(
   student: Student,
   notes: LessonNote[],
+  references: string[] = [],
 ): AIRequest {
   const recent = notes.slice(0, 12); // most recent first (already ordered)
 
@@ -55,7 +59,13 @@ export function buildSuggestionContext(
     ? recent.map(renderNote).join("\n")
     : "(no lessons logged yet)";
 
-  const user = `STUDENT PROFILE\n${profile}\n\nRECENT LESSONS (most recent first)\n${history}\n\nBased on this, suggest the next moves to help this student progress toward their goals.`;
+  const material = references.length
+    ? `\n\nTEACHER'S MATERIAL (excerpts from their own documents — prefer these)\n${references
+        .map((r, i) => `[${i + 1}] ${r}`)
+        .join("\n\n")}`
+    : "";
+
+  const user = `STUDENT PROFILE\n${profile}\n\nRECENT LESSONS (most recent first)\n${history}${material}\n\nBased on this, suggest the next moves to help this student progress toward their goals.`;
 
   return { system: SYSTEM, user, schema: suggestionJsonSchema };
 }
